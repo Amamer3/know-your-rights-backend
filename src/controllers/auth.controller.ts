@@ -123,9 +123,6 @@ export const googleLogin = async (req: Request, res: Response) => {
 };
 
 export const googleCallback = async (req: Request, res: Response) => {
-  // Supabase usually handles the redirect back to the site URL.
-  // If this endpoint is hit, it means the user was redirected here.
-  // We check for both 'code' (OAuth flow) and 'error' in the hash/query.
   const { code, error, error_description } = req.query;
 
   if (error) {
@@ -136,26 +133,55 @@ export const googleCallback = async (req: Request, res: Response) => {
     });
   }
 
-  // Note: Supabase often returns the session in a URL fragment (#access_token=...)
-  // which is NOT visible to the server. The 'code' is only present if using
-  // the 'exchangeCodeForSession' flow.
-  if (!code) {
-    return res.status(200).json({ 
-      message: 'Callback received', 
-      info: 'If you see this, Supabase might be sending tokens in the URL fragment (#). Ensure your GOOGLE_REDIRECT_URL is set correctly in both Render and Supabase.',
-      query: req.query
-    });
+  // If we have a code, exchange it for a session (PKCE flow)
+  if (code) {
+    try {
+      const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code as string);
+      if (exchangeError) throw exchangeError;
+
+      // After successful exchange, we still want to redirect to the app
+      // We can pass the access_token and refresh_token in the hash
+      const hash = `#access_token=${data.session?.access_token}&refresh_token=${data.session?.refresh_token}&expires_in=${data.session?.expires_in}&token_type=${data.session?.token_type}`;
+      
+      return res.send(`
+        <html>
+          <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f0f2f5;">
+            <div style="text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h2 style="color: #1a73e8;">Authentication Successful</h2>
+              <p>Redirecting you back to the app...</p>
+              <script>
+                const hash = "${hash}";
+                window.location.href = "knowyourrightsgh://auth-callback" + hash;
+                setTimeout(() => { window.close(); }, 3000);
+              </script>
+            </div>
+          </body>
+        </html>
+      `);
+    } catch (error: any) {
+      return res.status(400).json({ message: error.message });
+    }
   }
 
-  try {
-    const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code as string);
-    if (exchangeError) throw exchangeError;
-
-    res.status(200).json({
-      message: 'Google login successful',
-      data,
-    });
-  } catch (error: any) {
-    res.status(400).json({ message: error.message });
-  }
+  // If no code, it might be the implicit flow (tokens in # fragment)
+  // The server can't see the hash, so we use a client-side bridge to redirect
+  res.send(`
+    <html>
+      <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f0f2f5;">
+        <div style="text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <h2 style="color: #1a73e8;">Authentication Successful</h2>
+          <p>Redirecting you back to the app...</p>
+          <script>
+            // Grab the fragment (#) from the current URL which contains the tokens
+            const hash = window.location.hash;
+            // Redirect to the mobile app using its custom scheme
+            window.location.href = "knowyourrightsgh://auth-callback" + hash;
+            
+            // Fallback: Close the window after a delay if redirect fails
+            setTimeout(() => { window.close(); }, 3000);
+          </script>
+        </div>
+      </body>
+    </html>
+  `);
 };
