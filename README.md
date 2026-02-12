@@ -76,6 +76,23 @@ A robust Node.js backend for the "Know Your Rights Ghana" platform, designed to 
   npm start
   ```
 
+## 🌐 Deployment to Render
+
+This project is configured for easy deployment to [Render](https://render.com/).
+
+### 1. Blueprint Deployment (Recommended)
+Render will automatically detect the `render.yaml` file in this repository.
+- Connect your GitHub/GitLab repository to Render.
+- Choose **Blueprint** when prompted.
+- Fill in the required environment variables in the Render dashboard.
+
+### 2. Manual Web Service Setup
+If you prefer manual setup:
+- **Service Type**: Web Service
+- **Build Command**: `npm install && npm run build`
+- **Start Command**: `npm start`
+- **Environment Variables**: Add all variables from your `.env` file.
+
 ## 🧪 Testing
 
 A comprehensive test script is provided to verify all API endpoints:
