@@ -151,8 +151,24 @@ export const googleCallback = async (req: Request, res: Response) => {
               <p>Redirecting you back to the app...</p>
               <script>
                 const hash = "${hash}";
-                window.location.href = "knowyourrightsgh://auth-callback" + hash;
-                setTimeout(() => { window.close(); }, 3000);
+                const redirectUrl = "knowyourrightsgh://auth-callback" + hash;
+                
+                // Method 1: standard redirect
+                window.location.replace(redirectUrl);
+                
+                // Method 2: fallback redirect after short delay
+                setTimeout(() => {
+                  window.location.href = redirectUrl;
+                }, 100);
+
+                // Method 3: hidden link click (some mobile browsers require this)
+                const a = document.createElement("a");
+                a.href = redirectUrl;
+                document.body.appendChild(a);
+                a.click();
+
+                // Close window as final fallback
+                setTimeout(() => { window.close(); }, 5000);
               </script>
             </div>
           </body>
@@ -174,11 +190,24 @@ export const googleCallback = async (req: Request, res: Response) => {
           <script>
             // Grab the fragment (#) from the current URL which contains the tokens
             const hash = window.location.hash;
-            // Redirect to the mobile app using its custom scheme
-            window.location.href = "knowyourrightsgh://auth-callback" + hash;
+            const redirectUrl = "knowyourrightsgh://auth-callback" + hash;
+
+            // Method 1: standard redirect
+            window.location.replace(redirectUrl);
             
-            // Fallback: Close the window after a delay if redirect fails
-            setTimeout(() => { window.close(); }, 3000);
+            // Method 2: fallback redirect
+            setTimeout(() => {
+              window.location.href = redirectUrl;
+            }, 100);
+
+            // Method 3: hidden link click
+            const a = document.createElement("a");
+            a.href = redirectUrl;
+            document.body.appendChild(a);
+            a.click();
+
+            // Close window as final fallback
+            setTimeout(() => { window.close(); }, 5000);
           </script>
         </div>
       </body>
