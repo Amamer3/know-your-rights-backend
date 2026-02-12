@@ -14,7 +14,7 @@ A robust Node.js backend for the "Know Your Rights Ghana" platform, designed to 
 
 ## 🛠 Tech Stack
 
-- **Runtime**: Node.js (ES Modules)
+- **Runtime**: Node.js (ES Module)
 - **Framework**: Express.js
 - **Language**: TypeScript
 - **Database**: Supabase (PostgreSQL)
