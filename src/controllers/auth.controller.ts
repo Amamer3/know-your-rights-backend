@@ -123,19 +123,34 @@ export const googleLogin = async (req: Request, res: Response) => {
 };
 
 export const googleCallback = async (req: Request, res: Response) => {
-  // This endpoint would handle the redirect from Google if needed
-  // Supabase usually handles the token exchange, but we can provide a landing page or redirect
-  const { code } = req.query;
+  // Supabase usually handles the redirect back to the site URL.
+  // If this endpoint is hit, it means the user was redirected here.
+  // We check for both 'code' (OAuth flow) and 'error' in the hash/query.
+  const { code, error, error_description } = req.query;
 
+  if (error) {
+    return res.status(400).json({ 
+      message: 'Google login error', 
+      error, 
+      description: error_description 
+    });
+  }
+
+  // Note: Supabase often returns the session in a URL fragment (#access_token=...)
+  // which is NOT visible to the server. The 'code' is only present if using
+  // the 'exchangeCodeForSession' flow.
   if (!code) {
-    return res.status(400).json({ message: 'No code provided' });
+    return res.status(200).json({ 
+      message: 'Callback received', 
+      info: 'If you see this, Supabase might be sending tokens in the URL fragment (#). Ensure your GOOGLE_REDIRECT_URL is set correctly in both Render and Supabase.',
+      query: req.query
+    });
   }
 
   try {
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code as string);
-    if (error) throw error;
+    const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code as string);
+    if (exchangeError) throw exchangeError;
 
-    // Redirect to frontend with tokens or set cookies
     res.status(200).json({
       message: 'Google login successful',
       data,
