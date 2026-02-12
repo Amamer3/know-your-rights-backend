@@ -146,29 +146,36 @@ export const googleCallback = async (req: Request, res: Response) => {
       return res.send(`
         <html>
           <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f0f2f5;">
-            <div style="text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <div style="text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 400px; width: 90%;">
               <h2 style="color: #1a73e8;">Authentication Successful</h2>
-              <p>Redirecting you back to the app...</p>
+              <p>We're taking you back to the <strong>Know Your Rights Ghana</strong> app.</p>
+              
+              <a id="manual-link" href="knowyourrightsgh://auth-callback${hash}" 
+                 style="display: inline-block; margin-top: 20px; padding: 12px 24px; background-color: #1a73e8; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                Open the App
+              </a>
+
+              <p style="margin-top: 20px; font-size: 0.9em; color: #666;">
+                If the app doesn't open automatically, please click the button above.
+              </p>
+
               <script>
                 const hash = "${hash}";
                 const redirectUrl = "knowyourrightsgh://auth-callback" + hash;
                 
-                // Method 1: standard redirect
+                // Try immediate redirect
                 window.location.replace(redirectUrl);
                 
-                // Method 2: fallback redirect after short delay
+                // Fallback 1: href redirect
                 setTimeout(() => {
                   window.location.href = redirectUrl;
-                }, 100);
+                }, 500);
 
-                // Method 3: hidden link click (some mobile browsers require this)
-                const a = document.createElement("a");
-                a.href = redirectUrl;
-                document.body.appendChild(a);
-                a.click();
-
-                // Close window as final fallback
-                setTimeout(() => { window.close(); }, 5000);
+                // Fallback 2: programatic click on the manual button
+                setTimeout(() => {
+                  const link = document.getElementById('manual-link');
+                  if (link) link.click();
+                }, 1000);
               </script>
             </div>
           </body>
@@ -180,34 +187,42 @@ export const googleCallback = async (req: Request, res: Response) => {
   }
 
   // If no code, it might be the implicit flow (tokens in # fragment)
-  // The server can't see the hash, so we use a client-side bridge to redirect
   res.send(`
     <html>
       <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f0f2f5;">
-        <div style="text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <div style="text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 400px; width: 90%;">
           <h2 style="color: #1a73e8;">Authentication Successful</h2>
-          <p>Redirecting you back to the app...</p>
+          <p>We're taking you back to the <strong>Know Your Rights Ghana</strong> app.</p>
+          
+          <a id="manual-link" href="#" 
+             style="display: inline-block; margin-top: 20px; padding: 12px 24px; background-color: #1a73e8; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">
+            Open the App
+          </a>
+
+          <p style="margin-top: 20px; font-size: 0.9em; color: #666;">
+            If the app doesn't open automatically, please click the button above.
+          </p>
+
           <script>
-            // Grab the fragment (#) from the current URL which contains the tokens
             const hash = window.location.hash;
             const redirectUrl = "knowyourrightsgh://auth-callback" + hash;
+            
+            // Set the manual link href
+            const manualLink = document.getElementById('manual-link');
+            manualLink.href = redirectUrl;
 
-            // Method 1: standard redirect
+            // Try immediate redirect
             window.location.replace(redirectUrl);
             
-            // Method 2: fallback redirect
+            // Fallback 1: href redirect
             setTimeout(() => {
               window.location.href = redirectUrl;
-            }, 100);
+            }, 500);
 
-            // Method 3: hidden link click
-            const a = document.createElement("a");
-            a.href = redirectUrl;
-            document.body.appendChild(a);
-            a.click();
-
-            // Close window as final fallback
-            setTimeout(() => { window.close(); }, 5000);
+            // Fallback 2: programatic click
+            setTimeout(() => {
+              manualLink.click();
+            }, 1000);
           </script>
         </div>
       </body>
