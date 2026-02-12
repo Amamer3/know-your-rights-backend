@@ -3,7 +3,8 @@ import FormData from 'form-data';
 import fs from 'fs';
 import path from 'path';
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = process.env.API_URL || 'https://know-your-rights-backend.onrender.com/api';
+const HEALTH_URL = process.env.HEALTH_URL || 'https://know-your-rights-backend.onrender.com/health';
 let authToken = '';
 let userId = '';
 
@@ -13,7 +14,7 @@ const testEndpoints = async () => {
   try {
     // 1. Health Check
     console.log('--- Testing Health Check ---');
-    const health = await axios.get('http://localhost:3000/health');
+    const health = await axios.get(HEALTH_URL);
     console.log('Health Check:', health.data.status);
 
     // 2. Auth: Signup
