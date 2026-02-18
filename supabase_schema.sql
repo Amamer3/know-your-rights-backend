@@ -134,18 +134,35 @@ USING GIN (to_tsvector('english', article_content));
 -- Create a function to handle new user profiles
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  displayName TEXT;
 BEGIN
+  -- Extract name from metadata with multiple possible keys
+  displayName := COALESCE(
+    NEW.raw_user_meta_data->>'full_name',
+    NEW.raw_user_meta_data->>'name',
+    NEW.raw_user_meta_data->>'displayName',
+    ''
+  );
+
   INSERT INTO public.profiles (id, email, full_name)
   VALUES (
     NEW.id,
     NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', '')
+    displayName
   )
   ON CONFLICT (id) DO UPDATE
   SET 
     email = EXCLUDED.email,
-    full_name = EXCLUDED.full_name,
+    full_name = CASE 
+      WHEN EXCLUDED.full_name <> '' THEN EXCLUDED.full_name 
+      ELSE profiles.full_name 
+    END,
     updated_at = NOW();
+    
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  -- Log error if needed, but return NEW to allow auth user creation
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

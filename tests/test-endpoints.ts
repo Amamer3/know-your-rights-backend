@@ -57,9 +57,21 @@ const testEndpoints = async () => {
       refreshToken = login.data.data.session.refresh_token;
       userId = login.data.data.user.id;
       console.log(' Login Successful');
+
+      // 3a. Auth: Verify Profile (Check if name exists)
+      console.log('\n--- Testing Auth: Verify Profile ---');
+      const profile = await axios.get(`${API_URL}/auth/profile`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      console.log(' Profile Data:', JSON.stringify(profile.data.data, null, 2));
+      if (profile.data.data.full_name === 'Test User') {
+        console.log(' Name Verification Successful');
+      } else {
+        console.log(' Name Verification Failed: Expected "Test User", got', profile.data.data.full_name);
+      }
     } catch (error: any) {
-      console.log(' Login Failed:', error.response?.data?.message || error.message);
-      console.log('⚠️  Note: If "Email not confirmed" occurs, you need to disable "Confirm Email" in Supabase Auth Settings.');
+      console.log(' Login or Profile Verification Failed:', error.response?.data?.message || error.message);
+      if (error.response?.data) console.log(' Error details:', error.response.data);
     }
 
     // 3b. Auth: Google Login Initiation

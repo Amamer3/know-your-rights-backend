@@ -2,7 +2,10 @@ import { Request, Response } from 'express';
 import { supabase } from '../config/supabase.js';
 
 export const signup = async (req: Request, res: Response) => {
-  const { email, password, name } = req.body;
+  const { email, password, name, fullName } = req.body;
+  const displayName = name || fullName;
+
+  console.log('Signup attempt:', { email, displayName });
 
   try {
     // Check if user already exists in profiles
@@ -21,7 +24,8 @@ export const signup = async (req: Request, res: Response) => {
       password,
       options: {
         data: {
-          full_name: name,
+          full_name: displayName,
+          name: displayName, // Add both just in case
         },
       },
     });
@@ -33,6 +37,7 @@ export const signup = async (req: Request, res: Response) => {
       data,
     });
   } catch (error: any) {
+    console.error('Signup error:', error);
     res.status(400).json({ message: error.message });
   }
 };
@@ -47,6 +52,29 @@ export const login = async (req: Request, res: Response) => {
     });
 
     if (error) throw error;
+
+    // After successful login, ensure the profile exists in the database
+    // This is a fallback in case the trigger failed during signup
+    if (data.user) {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError && profileError.code === 'PGRST116') {
+        // Profile doesn't exist, create it
+        const displayName = data.user.user_metadata?.full_name || 
+                           data.user.user_metadata?.name || 
+                           data.user.user_metadata?.displayName || '';
+        
+        await supabase.from('profiles').insert({
+          id: data.user.id,
+          email: data.user.email,
+          full_name: displayName,
+        });
+      }
+    }
 
     res.status(200).json({
       message: 'Login successful',
