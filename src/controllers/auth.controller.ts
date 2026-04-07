@@ -178,13 +178,11 @@ export const googleCallback = async (req: Request, res: Response) => {
               <h2 style="color: #1a73e8;">Authentication Successful</h2>
               <p>We're taking you back to the <strong>Know Your Rights Ghana</strong> app.</p>
               
-              <a id="manual-link" href="knowyourrightsgh://auth-callback${hash}" 
-                 style="display: inline-block; margin-top: 20px; padding: 12px 24px; background-color: #1a73e8; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">
-                Open the App
-              </a>
-
               <p style="margin-top: 20px; font-size: 0.9em; color: #666;">
-                If the app doesn't open automatically, please click the button above.
+                If the app does not open automatically, switch back to the app manually.
+              </p>
+              <p style="margin-top: 8px; font-size: 0.85em; color: #999;">
+                This page will close automatically in 5 seconds.
               </p>
 
               <script>
@@ -198,12 +196,12 @@ export const googleCallback = async (req: Request, res: Response) => {
                 setTimeout(() => {
                   window.location.href = redirectUrl;
                 }, 500);
-
-                // Fallback 2: programatic click on the manual button
+                
+                // Try to close this tab after redirect attempts (works in some browsers)
                 setTimeout(() => {
-                  const link = document.getElementById('manual-link');
-                  if (link) link.click();
-                }, 1000);
+                  window.close();
+                }, 5000);
+
               </script>
             </div>
           </body>
@@ -222,23 +220,17 @@ export const googleCallback = async (req: Request, res: Response) => {
           <h2 style="color: #1a73e8;">Authentication Successful</h2>
           <p>We're taking you back to the <strong>Know Your Rights Ghana</strong> app.</p>
           
-          <a id="manual-link" href="#" 
-             style="display: inline-block; margin-top: 20px; padding: 12px 24px; background-color: #1a73e8; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">
-            Open the App
-          </a>
-
           <p style="margin-top: 20px; font-size: 0.9em; color: #666;">
-            If the app doesn't open automatically, please click the button above.
+            If the app does not open automatically, switch back to the app manually.
+          </p>
+          <p style="margin-top: 8px; font-size: 0.85em; color: #999;">
+            This page will close automatically in 5 seconds.
           </p>
 
           <script>
             const hash = window.location.hash;
             const redirectUrl = "knowyourrightsgh://auth-callback" + hash;
             
-            // Set the manual link href
-            const manualLink = document.getElementById('manual-link');
-            manualLink.href = redirectUrl;
-
             // Try immediate redirect
             window.location.replace(redirectUrl);
             
@@ -246,11 +238,12 @@ export const googleCallback = async (req: Request, res: Response) => {
             setTimeout(() => {
               window.location.href = redirectUrl;
             }, 500);
-
-            // Fallback 2: programatic click
+            
+            // Try to close this tab after redirect attempts (works in some browsers)
             setTimeout(() => {
-              manualLink.click();
-            }, 1000);
+              window.close();
+            }, 5000);
+
           </script>
         </div>
       </body>
