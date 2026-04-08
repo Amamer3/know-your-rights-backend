@@ -40,6 +40,23 @@ export const openApiDocument = {
       post: {
         tags: ['Auth'],
         summary: 'Sign up a new user',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['email', 'password'],
+                properties: {
+                  email: { type: 'string', format: 'email' },
+                  password: { type: 'string', minLength: 6 },
+                  name: { type: 'string' },
+                  fullName: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
         responses: {
           '201': { description: 'User registered successfully' },
           '400': { description: 'Invalid request' },
@@ -50,6 +67,21 @@ export const openApiDocument = {
       post: {
         tags: ['Auth'],
         summary: 'Log in with email and password',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['email', 'password'],
+                properties: {
+                  email: { type: 'string', format: 'email' },
+                  password: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
         responses: {
           '200': { description: 'Login successful' },
           '401': { description: 'Unauthorized' },
@@ -107,6 +139,20 @@ export const openApiDocument = {
         tags: ['User'],
         summary: 'Update authenticated user profile',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  preferences: { type: 'object', additionalProperties: true },
+                },
+              },
+            },
+          },
+        },
         responses: {
           '200': { description: 'Profile updated' },
         },
@@ -180,6 +226,28 @@ export const openApiDocument = {
         tags: ['Assessments'],
         summary: 'Submit an assessment',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'multipart/form-data': {
+              schema: {
+                type: 'object',
+                properties: {
+                  description: { type: 'string' },
+                  audio: { type: 'string', format: 'binary' },
+                },
+              },
+            },
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  description: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
         responses: {
           '200': { description: 'Assessment submitted' },
           '401': { description: 'Unauthorized' },
@@ -227,6 +295,23 @@ export const openApiDocument = {
         tags: ['Saved'],
         summary: 'Save an item',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['resource_id', 'resource_type', 'title'],
+                properties: {
+                  resource_id: { type: 'string' },
+                  resource_type: { type: 'string', enum: ['article', 'assessment'] },
+                  title: { type: 'string' },
+                  content: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
         responses: {
           '201': { description: 'Item saved' },
         },
@@ -320,6 +405,20 @@ export const openApiDocument = {
         parameters: [
           { name: 'userId', in: 'path', required: true, schema: { type: 'string' } },
         ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  full_name: { type: 'string' },
+                  preferences: { type: 'object', additionalProperties: true },
+                },
+              },
+            },
+          },
+        },
         responses: {
           '200': { description: 'User updated' },
           '400': { description: 'Invalid update request' },
@@ -383,6 +482,24 @@ export const openApiDocument = {
         tags: ['Admin'],
         summary: 'Create constitution article',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['article_number', 'article_title', 'article_content'],
+                properties: {
+                  chapter: { type: 'integer' },
+                  chapter_title: { type: 'string' },
+                  article_number: { type: 'integer' },
+                  article_title: { type: 'string' },
+                  article_content: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
         responses: {
           '201': { description: 'Article created' },
           '400': { description: 'Invalid request' },
@@ -398,6 +515,23 @@ export const openApiDocument = {
         parameters: [
           { name: 'articleId', in: 'path', required: true, schema: { type: 'string' } },
         ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  chapter: { type: 'integer' },
+                  chapter_title: { type: 'string' },
+                  article_number: { type: 'integer' },
+                  article_title: { type: 'string' },
+                  article_content: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
         responses: {
           '200': { description: 'Article updated' },
           '400': { description: 'Invalid request' },
@@ -431,6 +565,26 @@ export const openApiDocument = {
         tags: ['Admin'],
         summary: 'Create emergency action',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['title'],
+                properties: {
+                  title: { type: 'string' },
+                  description: { type: 'string' },
+                  steps: {
+                    type: 'array',
+                    items: { type: 'string' },
+                  },
+                  contact_info: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
         responses: {
           '201': { description: 'Emergency action created' },
           '400': { description: 'Invalid request' },
@@ -446,6 +600,25 @@ export const openApiDocument = {
         parameters: [
           { name: 'actionId', in: 'path', required: true, schema: { type: 'string' } },
         ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  title: { type: 'string' },
+                  description: { type: 'string' },
+                  steps: {
+                    type: 'array',
+                    items: { type: 'string' },
+                  },
+                  contact_info: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
         responses: {
           '200': { description: 'Emergency action updated' },
           '400': { description: 'Invalid request' },
@@ -470,6 +643,20 @@ export const openApiDocument = {
         tags: ['Admin'],
         summary: 'Upload constitution PDF',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'multipart/form-data': {
+              schema: {
+                type: 'object',
+                required: ['pdf'],
+                properties: {
+                  pdf: { type: 'string', format: 'binary' },
+                },
+              },
+            },
+          },
+        },
         responses: {
           '200': { description: 'PDF processed successfully' },
           '400': { description: 'No file uploaded' },
