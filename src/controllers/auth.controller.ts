@@ -135,7 +135,7 @@ export const googleLogin = async (req: Request, res: Response) => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: process.env.GOOGLE_REDIRECT_URL || 'http://localhost:3000/api/auth/callback',
+        redirectTo: 'knowyourrights://auth/callback',
       },
     });
 
@@ -143,110 +143,50 @@ export const googleLogin = async (req: Request, res: Response) => {
 
     res.status(200).json({
       message: 'Google login initiated',
-      url: data.url,
+      url: data.url, 
     });
   } catch (error: any) {
     res.status(400).json({ message: error.message });
   }
 };
 
+function oauthQueryFromRequest(req: Request): string {
+  const raw = req.originalUrl;
+  const q = raw.indexOf('?');
+  return q >= 0 ? raw.slice(q + 1) : '';
+}
+
 export const googleCallback = async (req: Request, res: Response) => {
-  const { code, error, error_description } = req.query;
+  const { error, error_description } = req.query;
 
   if (error) {
-    return res.status(400).json({ 
-      message: 'Google login error', 
-      error, 
-      description: error_description 
-    });
-  }
-
-  // If we have a code, exchange it for a session (PKCE flow)
-  if (code) {
-    try {
-      const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code as string);
-      if (exchangeError) throw exchangeError;
-
-      // After successful exchange, we still want to redirect to the app
-      // We can pass the access_token and refresh_token in the hash
-      const hash = `#access_token=${data.session?.access_token}&refresh_token=${data.session?.refresh_token}&expires_in=${data.session?.expires_in}&token_type=${data.session?.token_type}`;
-      
-      return res.send(`
-        <html>
-          <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f0f2f5;">
-            <div style="text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 400px; width: 90%;">
-              <h2 style="color: #1a73e8;">Authentication Successful</h2>
-              <p>We're taking you back to the <strong>Know Your Rights Ghana</strong> app.</p>
-              
-              <p style="margin-top: 20px; font-size: 0.9em; color: #666;">
-                If the app does not open automatically, switch back to the app manually.
-              </p>
-              <p style="margin-top: 8px; font-size: 0.85em; color: #999;">
-                This page will close automatically in 5 seconds.
-              </p>
-
-              <script>
-                const hash = "${hash}";
-                const redirectUrl = "knowyourrightsgh://auth-callback" + hash;
-                
-                // Try immediate redirect
-                window.location.replace(redirectUrl);
-                
-                // Fallback 1: href redirect
-                setTimeout(() => {
-                  window.location.href = redirectUrl;
-                }, 500);
-                
-                // Try to close this tab after redirect attempts (works in some browsers)
-                setTimeout(() => {
-                  window.close();
-                }, 5000);
-
-              </script>
-            </div>
-          </body>
-        </html>
-      `);
-    } catch (error: any) {
-      return res.status(400).json({ message: error.message });
+    const params = new URLSearchParams();
+    params.set('error', String(error));
+    if (error_description != null && String(error_description).length > 0) {
+      params.set('error_description', String(error_description));
     }
+    return res.redirect(302, `knowyourrights://auth/callback?${params.toString()}`);
   }
 
-  // If no code, it might be the implicit flow (tokens in # fragment)
-  res.send(`
-    <html>
-      <body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f0f2f5;">
-        <div style="text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-width: 400px; width: 90%;">
-          <h2 style="color: #1a73e8;">Authentication Successful</h2>
-          <p>We're taking you back to the <strong>Know Your Rights Ghana</strong> app.</p>
-          
-          <p style="margin-top: 20px; font-size: 0.9em; color: #666;">
-            If the app does not open automatically, switch back to the app manually.
-          </p>
-          <p style="margin-top: 8px; font-size: 0.85em; color: #999;">
-            This page will close automatically in 5 seconds.
-          </p>
+  const query = oauthQueryFromRequest(req);
+  if (query) {
+    return res.redirect(302, `knowyourrights://auth/callback?${query}`);
+  }
 
-          <script>
-            const hash = window.location.hash;
-            const redirectUrl = "knowyourrightsgh://auth-callback" + hash;
-            
-            // Try immediate redirect
-            window.location.replace(redirectUrl);
-            
-            // Fallback 1: href redirect
-            setTimeout(() => {
-              window.location.href = redirectUrl;
-            }, 500);
-            
-            // Try to close this tab after redirect attempts (works in some browsers)
-            setTimeout(() => {
-              window.close();
-            }, 5000);
-
-          </script>
-        </div>
-      </body>
-    </html>
-  `);
+  // Implicit flow: tokens live in the URL hash; the server never sees them — bridge in the browser only.
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  return res.send(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Return to app</title></head>
+<body>
+<script>
+(function () {
+  var hash = window.location.hash || '';
+  var url = 'knowyourrights://auth/callback' + hash;
+  window.location.replace(url);
+  setTimeout(function () { window.location.href = url; }, 300);
+  setTimeout(function () { window.close(); }, 5000);
+})();
+</script>
+<p style="font-family:system-ui,sans-serif;text-align:center;margin-top:2rem">Opening app…</p>
+</body></html>`);
 };
