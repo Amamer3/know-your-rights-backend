@@ -9,6 +9,7 @@ import aiRoutes from './routes/ai.routes.js';
 import legalRoutes from './routes/legal.routes.js';
 import savedRoutes from './routes/saved.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import { redirectRootOAuthToApp } from './controllers/auth.controller.js';
 
 dotenv.config();
 
@@ -29,8 +30,11 @@ app.use('/api/legal', legalRoutes);
 app.use('/api/saved', savedRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Root route
+// Root route (OAuth may land here if Supabase Site URL is this host without /api/auth/callback)
 app.get('/', (req, res) => {
+  if (redirectRootOAuthToApp(req, res)) {
+    return;
+  }
   res.json({ message: 'Welcome to KnowYourRights GH API' });
 });
 

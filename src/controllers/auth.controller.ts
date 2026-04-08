@@ -156,6 +156,22 @@ function oauthQueryFromRequest(req: Request): string {
   return q >= 0 ? raw.slice(q + 1) : '';
 }
 
+/**
+ * Supabase uses "Site URL" when redirectTo is not allowed. That is often the API root,
+ * so OAuth returns here as /?code=… or /?error=… instead of /api/auth/callback.
+ */
+export function redirectRootOAuthToApp(req: Request, res: Response): boolean {
+  if (req.query.code == null && req.query.error == null) {
+    return false;
+  }
+  const query = oauthQueryFromRequest(req);
+  if (!query) {
+    return false;
+  }
+  res.redirect(302, `knowyourrights://auth/callback?${query}`);
+  return true;
+}
+
 export const googleCallback = async (req: Request, res: Response) => {
   const { error, error_description } = req.query;
 
