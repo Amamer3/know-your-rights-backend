@@ -166,6 +166,30 @@ function buildKnowYourRightsOAuthUrl(req: Request): string {
 }
 
 /**
+ * Safari and many in-app browsers reject or mishandle HTTP 302 Location: custom schemes.
+ * A short HTML page that navigates via JS reliably hands off to the native app.
+ */
+function sendSafariSafeDeepLink(res: Response, targetUrl: string): void {
+  const urlLiteral = JSON.stringify(targetUrl);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.status(200).send(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Return to app</title></head>
+<body>
+<script>
+(function () {
+  var u = ${urlLiteral};
+  window.location.replace(u);
+  setTimeout(function () { window.location.href = u; }, 100);
+  setTimeout(function () { window.location.href = u; }, 400);
+  setTimeout(function () { window.close(); }, 8000);
+})();
+</script>
+<p style="font-family:system-ui,sans-serif;text-align:center;margin-top:2rem;color:#444">Opening Know Your Rights…</p>
+<p style="font-family:system-ui,sans-serif;text-align:center;font-size:14px;color:#888">If nothing happens, return to the app manually.</p>
+</body></html>`);
+}
+
+/**
  * Supabase uses "Site URL" when redirectTo is not allowed. That is often the API root,
  * so OAuth returns here as /?code=… or /?error=… instead of /api/auth/callback.
  */
@@ -173,7 +197,7 @@ export function redirectRootOAuthToApp(req: Request, res: Response): boolean {
   if (req.query.code == null && req.query.error == null) {
     return false;
   }
-  res.redirect(302, buildKnowYourRightsOAuthUrl(req));
+  sendSafariSafeDeepLink(res, buildKnowYourRightsOAuthUrl(req));
   return true;
 }
 
@@ -186,11 +210,13 @@ export const googleCallback = async (req: Request, res: Response) => {
     if (error_description != null && String(error_description).length > 0) {
       params.set('error_description', String(error_description));
     }
-    return res.redirect(302, `knowyourrights://auth/callback?${params.toString()}`);
+    sendSafariSafeDeepLink(res, `knowyourrights://auth/callback?${params.toString()}`);
+    return;
   }
 
   if (Object.keys(req.query).length > 0) {
-    return res.redirect(302, buildKnowYourRightsOAuthUrl(req));
+    sendSafariSafeDeepLink(res, buildKnowYourRightsOAuthUrl(req));
+    return;
   }
 
   // Implicit flow: tokens live in the URL hash; the server never sees them — bridge in the browser only.
