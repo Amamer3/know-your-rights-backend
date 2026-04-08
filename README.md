@@ -53,6 +53,7 @@ A robust Node.js backend for the "Know Your Rights Ghana" platform, designed to 
 
 4. **Initialize Database**:
    Run the SQL provided in [supabase_schema.sql](supabase_schema.sql) in your Supabase SQL Editor to set up tables, RLS policies, and triggers.
+   Optional: run [scripts/verify-supabase-tables.sql](scripts/verify-supabase-tables.sql) to confirm all five required tables exist.
 
 5. **Seed Emergency Actions**:
    ```bash
@@ -100,6 +101,11 @@ A comprehensive test script is provided to verify all API endpoints:
 npx tsx src/test-endpoints.ts
 ```
 
+## 📚 API Documentation
+
+- Scalar API docs UI: `GET /docs`
+- OpenAPI JSON: `GET /openapi.json`
+
 ## 📡 API Endpoints
 
 ### Authentication
@@ -130,6 +136,36 @@ npx tsx src/test-endpoints.ts
 - `POST /api/saved`: Save an article or assessment.
 - `GET /api/saved`: List saved resources.
 - `DELETE /api/saved/:id`: Remove a saved resource.
+
+### Admin Dashboard (requires admin token)
+- `POST /api/admin/bootstrap`: One-time bootstrap for first admin account (requires bearer token + `x-admin-bootstrap-secret` header).
+- `GET /api/admin/stats`: Dashboard totals and recent activity.
+- `GET /api/admin/users`: List users (`page`, `limit`, `search`).
+- `GET /api/admin/users/:userId`: User details with recent activity.
+- `PATCH /api/admin/users/:userId`: Update user profile fields.
+- `DELETE /api/admin/users/:userId`: Delete user-related data.
+- `GET /api/admin/assessments`: List assessments (`page`, `limit`, `userId`).
+- `DELETE /api/admin/assessments/:assessmentId`: Remove assessment.
+- `GET /api/admin/articles`: List all constitution articles.
+- `POST /api/admin/articles`: Create article.
+- `PATCH /api/admin/articles/:articleId`: Update article.
+- `DELETE /api/admin/articles/:articleId`: Delete article.
+- `GET /api/admin/emergency-actions`: List emergency actions.
+- `POST /api/admin/emergency-actions`: Create emergency action.
+- `PATCH /api/admin/emergency-actions/:actionId`: Update emergency action.
+- `DELETE /api/admin/emergency-actions/:actionId`: Delete emergency action.
+- `POST /api/admin/upload`: Upload constitution PDF.
+
+Set these in `.env`:
+- `ADMIN_BOOTSTRAP_SECRET=your-strong-secret`
+- `ADMIN_EMAILS=admin1@example.com,admin2@example.com` (optional allow-list)
+
+Bootstrap flow:
+1. Sign in as the user to promote.
+2. Call `POST /api/admin/bootstrap` with:
+   - `Authorization: Bearer <access_token>`
+   - `x-admin-bootstrap-secret: <ADMIN_BOOTSTRAP_SECRET>`
+3. Endpoint sets `profiles.preferences.is_admin = true` for that user.
 
 ## 📄 License
 

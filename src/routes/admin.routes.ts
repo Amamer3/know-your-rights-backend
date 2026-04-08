@@ -1,11 +1,58 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { processConstitutionPDF } from '../utils/pdf-processor.js';
-import path from 'path';
 import fs from 'fs';
+import { authenticate, requireAdmin } from '../middlewares/auth.middleware.js';
+import {
+  bootstrapAdmin,
+  createConstitutionArticleAdmin,
+  createEmergencyActionAdmin,
+  deleteAssessmentAdmin,
+  deleteConstitutionArticleAdmin,
+  deleteEmergencyActionAdmin,
+  deleteUserByAdmin,
+  getAdminDashboardStats,
+  getUserAdminDetails,
+  listAssessmentsAdmin,
+  listConstitutionArticlesAdmin,
+  listEmergencyActionsAdmin,
+  listUsers,
+  updateConstitutionArticleAdmin,
+  updateEmergencyActionAdmin,
+  updateUserByAdmin,
+} from '../controllers/admin.controller.js';
 
 const router = Router();
 const upload = multer({ dest: 'uploads/' });
+
+// One-time admin bootstrap route (authenticated user + bootstrap secret).
+router.post('/bootstrap', authenticate, bootstrapAdmin);
+
+router.use(authenticate, requireAdmin);
+
+router.get('/stats', getAdminDashboardStats);
+
+// User management
+router.get('/users', listUsers);
+router.get('/users/:userId', getUserAdminDetails);
+router.patch('/users/:userId', updateUserByAdmin);
+router.delete('/users/:userId', deleteUserByAdmin);
+
+// Assessment management
+router.get('/assessments', listAssessmentsAdmin);
+router.delete('/assessments/:assessmentId', deleteAssessmentAdmin);
+
+// Constitution management
+router.get('/articles', listConstitutionArticlesAdmin);
+router.post('/articles', createConstitutionArticleAdmin);
+router.patch('/articles/:articleId', updateConstitutionArticleAdmin);
+router.delete('/articles/:articleId', deleteConstitutionArticleAdmin);
+
+// Emergency actions management
+router.get('/emergency-actions', listEmergencyActionsAdmin);
+router.post('/emergency-actions', createEmergencyActionAdmin);
+router.patch('/emergency-actions/:actionId', updateEmergencyActionAdmin);
+router.delete('/emergency-actions/:actionId', deleteEmergencyActionAdmin);
 
 router.post('/upload', upload.single('pdf'), async (req: Request, res: Response) => {
   if (!req.file) {

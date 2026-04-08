@@ -1,3 +1,12 @@
+-- ============================================================================
+-- Schema aligned with backend code (src/controllers, services, utils).
+-- Required public tables (all created below if missing):
+--   profiles, constitution_articles, emergency_actions, assessments, saved_resources
+--
+-- Bootstrap admin uses profiles.preferences JSONB (key: is_admin). No extra table.
+-- Backend admin routes expect SUPABASE_SERVICE_ROLE_KEY (bypasses RLS).
+-- ============================================================================
+
 -- 1. Profiles Table (Extends Supabase Auth)
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
