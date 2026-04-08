@@ -150,10 +150,19 @@ export const googleLogin = async (req: Request, res: Response) => {
   }
 };
 
-function oauthQueryFromRequest(req: Request): string {
-  const raw = req.originalUrl;
-  const q = raw.indexOf('?');
-  return q >= 0 ? raw.slice(q + 1) : '';
+/** Encode query for deep link so Safari accepts the URL (raw ?code=… strings can be invalid). */
+function buildKnowYourRightsOAuthUrl(req: Request): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(req.query)) {
+    if (value === undefined) continue;
+    if (Array.isArray(value)) {
+      for (const v of value) params.append(key, String(v));
+    } else {
+      params.append(key, String(value));
+    }
+  }
+  const qs = params.toString();
+  return qs ? `knowyourrights://auth/callback?${qs}` : 'knowyourrights://auth/callback';
 }
 
 /**
@@ -164,11 +173,7 @@ export function redirectRootOAuthToApp(req: Request, res: Response): boolean {
   if (req.query.code == null && req.query.error == null) {
     return false;
   }
-  const query = oauthQueryFromRequest(req);
-  if (!query) {
-    return false;
-  }
-  res.redirect(302, `knowyourrights://auth/callback?${query}`);
+  res.redirect(302, buildKnowYourRightsOAuthUrl(req));
   return true;
 }
 
@@ -184,9 +189,8 @@ export const googleCallback = async (req: Request, res: Response) => {
     return res.redirect(302, `knowyourrights://auth/callback?${params.toString()}`);
   }
 
-  const query = oauthQueryFromRequest(req);
-  if (query) {
-    return res.redirect(302, `knowyourrights://auth/callback?${query}`);
+  if (Object.keys(req.query).length > 0) {
+    return res.redirect(302, buildKnowYourRightsOAuthUrl(req));
   }
 
   // Implicit flow: tokens live in the URL hash; the server never sees them — bridge in the browser only.
@@ -197,7 +201,8 @@ export const googleCallback = async (req: Request, res: Response) => {
 <script>
 (function () {
   var hash = window.location.hash || '';
-  var url = 'knowyourrights://auth/callback' + hash;
+  var base = 'knowyourrights://auth/callback';
+  var url = hash ? base + hash : base;
   window.location.replace(url);
   setTimeout(function () { window.location.href = url; }, 300);
   setTimeout(function () { window.close(); }, 5000);
