@@ -15,7 +15,7 @@ import adminRoutes from './routes/admin.routes.js';
 import paymentsRoutes from './routes/payments.routes.js';
 import billingRoutes from './routes/billing.routes.js';
 import { redirectRootOAuthToApp } from './controllers/auth.controller.js';
-import { paystackWebhook } from './controllers/payments.controller.js';
+import { paystackWebhook, paystackCallbackRedirect } from './controllers/payments.controller.js';
 import { listPublicPlans } from './controllers/subscription.controller.js';
 import { apiReference } from '@scalar/express-api-reference';
 import { openApiDocument } from './docs/openapi.js';
@@ -61,6 +61,10 @@ app.use(
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Paystack browser return (must match PAYSTACK_CALLBACK_URL path, e.g. /api/payment/callback)
+app.get('/api/payment/callback', paystackCallbackRedirect);
+app.get('/api/payments/callback', paystackCallbackRedirect);
 
 // Routes
 app.use('/api/auth', authRoutes);

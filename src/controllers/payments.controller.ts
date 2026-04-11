@@ -259,3 +259,47 @@ export async function paystackWebhook(req: Request, res: Response): Promise<void
     res.status(500).json({ error: 'webhook processing failed' });
   }
 }
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * Paystack redirects the customer’s browser here after payment (GET ?reference=&trxref=).
+ * Returns a short HTML page that opens your app via deep link with the reference
+ * so the client can call POST /api/payments/verify.
+ *
+ * Env: PAYSTACK_MOBILE_RETURN_URL — e.g. knowyourrights://paystack-return (default)
+ */
+export function paystackCallbackRedirect(req: Request, res: Response): void {
+  const q = req.query;
+  const reference =
+    (typeof q.reference === 'string' && q.reference) ||
+    (typeof q.trxref === 'string' && q.trxref) ||
+    '';
+
+  const base =
+    process.env.PAYSTACK_MOBILE_RETURN_URL?.trim() || 'knowyourrights://paystack-return';
+  const sep = base.includes('?') ? '&' : '?';
+  const target = `${base}${sep}reference=${encodeURIComponent(reference)}`;
+  const targetLiteral = JSON.stringify(target);
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.status(200).send(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment complete</title></head>
+<body>
+<script>
+(function () {
+  var u = ${targetLiteral};
+  window.location.replace(u);
+  setTimeout(function () { window.location.href = u; }, 200);
+})();
+</script>
+<p style="font-family:system-ui,sans-serif;text-align:center;margin-top:2rem">Payment complete. Returning to the app…</p>
+<p style="font-family:system-ui,sans-serif;text-align:center;font-size:14px;color:#666">Reference: ${escapeHtml(reference || '—')}</p>
+</body></html>`);
+}
