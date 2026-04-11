@@ -7,12 +7,20 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     (typeof req.headers.Authorization === 'string' ? req.headers.Authorization : undefined);
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'No token provided' });
+    return res.status(401).json({
+      message: 'No token provided',
+      code: 'AUTH_HEADER_MISSING',
+      hint: 'Send header: Authorization: Bearer <Supabase session.access_token>',
+    });
   }
 
   const token = authHeader.slice(7).trim();
   if (!token) {
-    return res.status(401).json({ message: 'No token provided' });
+    return res.status(401).json({
+      message: 'No token provided',
+      code: 'AUTH_TOKEN_EMPTY',
+      hint: 'Send header: Authorization: Bearer <Supabase session.access_token>',
+    });
   }
 
   try {
@@ -22,13 +30,21 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     } = await supabaseAuth.auth.getUser(token);
 
     if (error || !user) {
-      return res.status(401).json({ message: 'Invalid or expired token' });
+      return res.status(401).json({
+        message: 'Invalid or expired token',
+        code: 'AUTH_TOKEN_INVALID',
+        hint: 'Refresh session with supabase.auth.refreshSession() or sign in again',
+      });
     }
 
     req.user = user;
     next();
   } catch (error) {
-    res.status(401).json({ message: 'Authentication failed' });
+    res.status(401).json({
+      message: 'Authentication failed',
+      code: 'AUTH_ERROR',
+      hint: 'Check SUPABASE_URL and SUPABASE_ANON_KEY on the server match your app project',
+    });
   }
 };
 

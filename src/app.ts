@@ -25,6 +25,10 @@ dotenv.config();
 
 const app = express();
 
+// Render (and similar) sit behind a reverse proxy. Required so express-rate-limit and req.ip
+// use X-Forwarded-For correctly; otherwise ERL throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
+app.set('trust proxy', process.env.TRUST_PROXY === '0' ? false : 1);
+
 // Paystack webhook must see the raw body for HMAC verification (before express.json).
 app.post(
   '/api/payments/webhook',
