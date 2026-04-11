@@ -268,12 +268,20 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+function escapeHtmlAttr(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 /**
  * Paystack redirects the customer’s browser here after payment (GET ?reference=&trxref=).
- * Returns a short HTML page that opens your app via deep link with the reference
- * so the client can call POST /api/payments/verify.
  *
- * Env: PAYSTACK_MOBILE_RETURN_URL — e.g. knowyourrights://paystack-return (default)
+ * iOS Safari often shows “address is invalid” if JavaScript auto-navigates to a custom scheme
+ * (e.g. knowyourrights://) when the app isn’t registered or Expo Go doesn’t own that scheme.
+ * So we use a visible “Open app” tap target (user gesture) and optional HTTPS auto-redirect only.
+ *
+ * Env:
+ * - PAYSTACK_MOBILE_RETURN_URL — deep link base (default knowyourrights://paystack-return)
+ * - PAYSTACK_WEB_CONTINUE_URL — optional https URL; if set, we also show “Continue on the web”
  */
 export function paystackCallbackRedirect(req: Request, res: Response): void {
   const q = req.query;
@@ -285,21 +293,35 @@ export function paystackCallbackRedirect(req: Request, res: Response): void {
   const base =
     process.env.PAYSTACK_MOBILE_RETURN_URL?.trim() || 'knowyourrights://paystack-return';
   const sep = base.includes('?') ? '&' : '?';
-  const target = `${base}${sep}reference=${encodeURIComponent(reference)}`;
-  const targetLiteral = JSON.stringify(target);
+  const appUrl = `${base}${sep}reference=${encodeURIComponent(reference)}`;
+  const appUrlJson = JSON.stringify(appUrl);
+  const webContinue = process.env.PAYSTACK_WEB_CONTINUE_URL?.trim();
+  const webHref =
+    webContinue &&
+    `${webContinue}${webContinue.includes('?') ? '&' : '?'}reference=${encodeURIComponent(reference)}`;
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.status(200).send(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment complete</title></head>
-<body>
+<body style="margin:0;padding:16px;font-family:system-ui,-apple-system,sans-serif;background:#f4f4f5;">
+<p style="text-align:center;margin-top:1.5rem;font-size:18px;font-weight:600;">Payment complete</p>
+<p style="text-align:center;color:#52525b;font-size:15px;">Return to the app to finish. On iPhone, tap the button below (Safari blocks automatic opens for custom links).</p>
+<p style="text-align:center;margin:1.5rem 0;">
+  <a href="${escapeHtmlAttr(appUrl)}" style="display:inline-block;padding:14px 24px;background:#16a34a;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Open app</a>
+</p>
+${
+  webHref
+    ? `<p style="text-align:center;"><a href="${escapeHtmlAttr(webHref)}" style="color:#2563eb;">Continue on the web</a></p>`
+    : ''
+}
+<p style="text-align:center;font-size:13px;color:#71717a;word-break:break-all;">Reference: ${escapeHtml(reference || '—')}</p>
 <script>
 (function () {
-  var u = ${targetLiteral};
-  window.location.replace(u);
-  setTimeout(function () { window.location.href = u; }, 200);
+  var u = ${appUrlJson};
+  if (u.indexOf('https://') === 0) {
+    window.location.replace(u);
+  }
 })();
 </script>
-<p style="font-family:system-ui,sans-serif;text-align:center;margin-top:2rem">Payment complete. Returning to the app…</p>
-<p style="font-family:system-ui,sans-serif;text-align:center;font-size:14px;color:#666">Reference: ${escapeHtml(reference || '—')}</p>
 </body></html>`);
 }
