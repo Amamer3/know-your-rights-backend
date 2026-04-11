@@ -1,5 +1,15 @@
 import { Request, Response } from 'express';
+import { z } from 'zod';
 import { supabase } from '../config/supabase.js';
+
+const listUsersQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+  search: z.preprocess(
+    (val) => (Array.isArray(val) ? val[0] : val),
+    z.string().max(200).optional(),
+  ),
+});
 
 function toPositiveInt(value: unknown, fallback: number): number {
   const n = Number(value);
@@ -133,10 +143,20 @@ export const getAdminDashboardStats = async (_req: Request, res: Response) => {
 };
 
 export const listUsers = async (req: Request, res: Response) => {
-  const page = toPositiveInt(req.query.page, 1);
-  const limit = Math.min(toPositiveInt(req.query.limit, 20), 100);
+  const queryParsed = listUsersQuerySchema.safeParse(req.query);
+  if (!queryParsed.success) {
+    return res.status(400).json({
+      message: 'Invalid query parameters',
+      details: queryParsed.error.flatten().fieldErrors,
+    });
+  }
+  const { page: pageIn, limit: limitIn, search: searchIn } = queryParsed.data;
+  const page = pageIn ?? 1;
+  const limit = Math.min(limitIn ?? 20, 100);
   const offset = (page - 1) * limit;
-  const search = String(req.query.search || '').trim();
+  const search = String(searchIn ?? '')
+    .trim()
+    .replace(/[%_]/g, '');
 
   try {
     let query = supabase
@@ -145,7 +165,7 @@ export const listUsers = async (req: Request, res: Response) => {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (search) {
+    if (search.length > 0) {
       query = query.or(`email.ilike.%${search}%,full_name.ilike.%${search}%`);
     }
 

@@ -1,7 +1,6 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { processConstitutionPDF } from '../utils/pdf-processor.js';
-import fs from 'fs';
 import { authenticate, requireAdmin } from '../middlewares/auth.middleware.js';
 import {
   bootstrapAdmin,
@@ -23,7 +22,10 @@ import {
 } from '../controllers/admin.controller.js';
 
 const router = Router();
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 30 * 1024 * 1024 },
+});
 
 // One-time admin bootstrap route (authenticated user + bootstrap secret).
 router.post('/bootstrap', authenticate, bootstrapAdmin);
@@ -54,17 +56,18 @@ router.post('/emergency-actions', createEmergencyActionAdmin);
 router.patch('/emergency-actions/:actionId', updateEmergencyActionAdmin);
 router.delete('/emergency-actions/:actionId', deleteEmergencyActionAdmin);
 
-router.post('/upload', upload.single('pdf'), async (req: Request, res: Response) => {
+import { rateLimit } from 'express-rate-limit';
+const uploadLimiter = rateLimit({
+  windowMs: 30 * 60 * 1000, // 30 minutes
+  limit: 5, // Limit each IP to 5 requests per windowMs
+});
+router.post('/upload', uploadLimiter, upload.single('pdf'), async (req: Request, res: Response) => {
   if (!req.file) {
     return res.status(400).json({ message: 'No file uploaded' });
   }
 
   try {
-    const filePath = req.file.path;
-    const result = await processConstitutionPDF(filePath);
-
-    // Clean up uploaded file
-    fs.unlinkSync(filePath);
+    const result = await processConstitutionPDF(req.file.buffer);
 
     res.status(200).json({
       message: 'PDF processed successfully. Note: Automatic article parsing logic should be refined for production.',

@@ -17,8 +17,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
       return res.status(401).json({ message: 'Invalid or expired token' });
     }
 
-    // Attach user to request object
-    (req as any).user = user;
+    req.user = user;
     next();
   } catch (error) {
     res.status(401).json({ message: 'Authentication failed' });
@@ -26,7 +25,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 };
 
 export const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
-  const user = (req as any).user;
+  const user = req.user;
   const adminListRaw = process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || '';
   const adminEmails = adminListRaw
     .split(',')

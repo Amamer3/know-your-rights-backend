@@ -1,15 +1,13 @@
-import fs from 'fs';
 import { PDFParse } from 'pdf-parse';
 import { supabase } from '../config/supabase.js';
 
-export const processConstitutionPDF = async (filePath: string) => {
-  const dataBuffer = fs.readFileSync(filePath);
+/** Process an uploaded constitution PDF from memory (avoids user-controlled paths on disk). */
+export const processConstitutionPDF = async (dataBuffer: Buffer) => {
 
   try {
     const parser = new PDFParse({ data: dataBuffer });
     const textResult = await parser.getText();
-    const infoResult = await parser.getInfo();
-    
+
     const text = textResult.text;
     console.log(`PDF text length: ${text.length} characters.`);
     
