@@ -272,16 +272,52 @@ function escapeHtmlAttr(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+/** Parse e.g. knowyourrights://paystack-return?reference=abc */
+function parseCustomSchemeUrl(url: string): { scheme: string; path: string; query: string } | null {
+  const m = /^([\w+.-]+):\/\/([^?#]*)\??([^#]*)?$/.exec(url.trim());
+  if (!m) return null;
+  return { scheme: m[1], path: m[2] || '', query: m[3] || '' };
+}
+
+/**
+ * Chrome on Android often ignores plain custom-scheme links; Intent URLs launch the installed app reliably.
+ * @see https://developer.chrome.com/docs/android/intents
+ */
+function buildAndroidIntentUrl(
+  parsed: { scheme: string; path: string; query: string },
+  packageName: string,
+): string {
+  const pathPart = parsed.path || 'paystack-return';
+  const hostPart = parsed.query ? `${pathPart}?${parsed.query}` : pathPart;
+  return `intent://${hostPart}#Intent;scheme=${parsed.scheme};package=${packageName};end`;
+}
+
+function openAppHref(req: Request, appUrl: string): { href: string; usedIntent: boolean } {
+  const pkg =
+    process.env.ANDROID_PACKAGE?.trim() ||
+    process.env.PAYSTACK_ANDROID_PACKAGE?.trim() ||
+    '';
+  const uaRaw = req.headers['user-agent'];
+  const ua = Array.isArray(uaRaw) ? uaRaw[0] : uaRaw || '';
+  const isAndroid = /Android/i.test(ua);
+  if (isAndroid && pkg) {
+    const parsed = parseCustomSchemeUrl(appUrl);
+    if (parsed) {
+      return { href: buildAndroidIntentUrl(parsed, pkg), usedIntent: true };
+    }
+  }
+  return { href: appUrl, usedIntent: false };
+}
+
 /**
  * Paystack redirects the customer’s browser here after payment (GET ?reference=&trxref=).
  *
- * iOS Safari often shows “address is invalid” if JavaScript auto-navigates to a custom scheme
- * (e.g. knowyourrights://) when the app isn’t registered or Expo Go doesn’t own that scheme.
- * So we use a visible “Open app” tap target (user gesture) and optional HTTPS auto-redirect only.
+ * iOS: custom scheme link (tap). Android: prefer Intent URL when ANDROID_PACKAGE is set.
  *
  * Env:
  * - PAYSTACK_MOBILE_RETURN_URL — deep link base (default knowyourrights://paystack-return)
- * - PAYSTACK_WEB_CONTINUE_URL — optional https URL; if set, we also show “Continue on the web”
+ * - ANDROID_PACKAGE — Android applicationId from app.json (e.g. com.yourorg.knowyourrights) for Intent links
+ * - PAYSTACK_WEB_CONTINUE_URL — optional https URL; “Continue on the web”
  */
 export function paystackCallbackRedirect(req: Request, res: Response): void {
   const q = req.query;
@@ -294,21 +330,38 @@ export function paystackCallbackRedirect(req: Request, res: Response): void {
     process.env.PAYSTACK_MOBILE_RETURN_URL?.trim() || 'knowyourrights://paystack-return';
   const sep = base.includes('?') ? '&' : '?';
   const appUrl = `${base}${sep}reference=${encodeURIComponent(reference)}`;
+  const { href: openHref, usedIntent } = openAppHref(req, appUrl);
   const appUrlJson = JSON.stringify(appUrl);
   const webContinue = process.env.PAYSTACK_WEB_CONTINUE_URL?.trim();
   const webHref =
     webContinue &&
     `${webContinue}${webContinue.includes('?') ? '&' : '?'}reference=${encodeURIComponent(reference)}`;
 
+  const androidHint = /Android/i.test(
+    Array.isArray(req.headers['user-agent']) ? req.headers['user-agent'][0] : req.headers['user-agent'] || '',
+  )
+    ? !process.env.ANDROID_PACKAGE?.trim() && !process.env.PAYSTACK_ANDROID_PACKAGE?.trim()
+    : false;
+
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.status(200).send(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment complete</title></head>
 <body style="margin:0;padding:16px;font-family:system-ui,-apple-system,sans-serif;background:#f4f4f5;">
 <p style="text-align:center;margin-top:1.5rem;font-size:18px;font-weight:600;">Payment complete</p>
-<p style="text-align:center;color:#52525b;font-size:15px;">Return to the app to finish. On iPhone, tap the button below (Safari blocks automatic opens for custom links).</p>
+<p style="text-align:center;color:#52525b;font-size:15px;">Tap <strong>Open app</strong> to return and finish. Use a normal tap (not long-press).</p>
 <p style="text-align:center;margin:1.5rem 0;">
-  <a href="${escapeHtmlAttr(appUrl)}" style="display:inline-block;padding:14px 24px;background:#16a34a;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Open app</a>
+  <a href="${escapeHtmlAttr(openHref)}" target="_top" rel="noopener noreferrer" style="display:inline-block;padding:14px 24px;background:#16a34a;color:#fff;text-decoration:none;border-radius:10px;font-weight:600;">Open app</a>
 </p>
+${
+  usedIntent
+    ? `<p style="text-align:center;margin-top:8px;"><a href="${escapeHtmlAttr(appUrl)}" target="_top" style="color:#52525b;font-size:14px;">Direct app link (if button above fails)</a></p>`
+    : ''
+}
+${
+  androidHint
+    ? `<p style="text-align:center;font-size:12px;color:#b45309;max-width:320px;margin:12px auto;">Android: set <code>ANDROID_PACKAGE</code> on the server (same as <code>android.package</code> in app.json) so this page can open your app.</p>`
+    : ''
+}
 ${
   webHref
     ? `<p style="text-align:center;"><a href="${escapeHtmlAttr(webHref)}" style="color:#2563eb;">Continue on the web</a></p>`
