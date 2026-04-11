@@ -5,13 +5,18 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
+import profileRoutes from './routes/profile.routes.js';
 import assessRoutes from './routes/assess.routes.js';
 import documentsRoutes from './routes/documents.routes.js';
 import recordingsRoutes from './routes/recordings.routes.js';
 import legalRoutes from './routes/legal.routes.js';
 import savedRoutes from './routes/saved.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import paymentsRoutes from './routes/payments.routes.js';
+import billingRoutes from './routes/billing.routes.js';
 import { redirectRootOAuthToApp } from './controllers/auth.controller.js';
+import { paystackWebhook } from './controllers/payments.controller.js';
+import { listPublicPlans } from './controllers/subscription.controller.js';
 import { apiReference } from '@scalar/express-api-reference';
 import { openApiDocument } from './docs/openapi.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
@@ -19,6 +24,15 @@ import { globalErrorHandler } from './middleware/errorHandler.js';
 dotenv.config();
 
 const app = express();
+
+// Paystack webhook must see the raw body for HMAC verification (before express.json).
+app.post(
+  '/api/payments/webhook',
+  express.raw({ type: 'application/json' }),
+  (req, res, next) => {
+    void paystackWebhook(req, res).catch(next);
+  },
+);
 
 // Middlewares
 app.use(
@@ -47,6 +61,11 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/payments', paymentsRoutes);
+app.use('/api/billing', billingRoutes);
+// Alias: easier if EXPO_PUBLIC_API_URL already ends with /api (use /plans, not /api/plans).
+app.get('/api/plans', listPublicPlans);
 app.use('/api/assess', assessRoutes);
 app.use('/api/documents', documentsRoutes);
 app.use('/api/recordings', recordingsRoutes);

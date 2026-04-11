@@ -11,5 +11,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase credentials are missing. Please check your .env file.');
 }
 
-// Use service role key if available for administrative tasks (bypassing RLS)
+// Service role for server-side DB (bypasses RLS).
 export const supabase = createClient(supabaseUrl, supabaseServiceRoleKey || supabaseAnonKey);
+
+/** Anon client for validating end-user JWTs (getUser). Prefer this in auth middleware. */
+export const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey || supabaseServiceRoleKey);

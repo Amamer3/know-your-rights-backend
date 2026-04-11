@@ -13,11 +13,48 @@ export type UserSubscriptionRow = {
   expires_at?: string | null;
 };
 
-const TIER_DEFAULTS: Record<string, { prompts_limit: number; page_limit: number }> = {
+export const TIER_DEFAULTS: Record<string, { prompts_limit: number; page_limit: number }> = {
   free: { prompts_limit: 5, page_limit: 20 },
   pro: { prompts_limit: 20, page_limit: 100 },
   premium: { prompts_limit: 100, page_limit: 100 },
 };
+
+export type PaidTier = 'pro' | 'premium';
+
+export async function setUserSubscriptionTier(
+  userId: string,
+  tier: keyof typeof TIER_DEFAULTS | string,
+  opts?: {
+    paystack_customer_code?: string | null;
+    paystack_subscription_code?: string | null;
+    reset_prompt_usage?: boolean;
+  },
+): Promise<UserSubscriptionRow> {
+  await getUserTier(userId);
+  const key = (tier || 'free').toLowerCase();
+  const lim = TIER_DEFAULTS[key] ?? TIER_DEFAULTS.free;
+
+  const patch: Record<string, unknown> = {
+    tier: key,
+    prompts_limit: lim.prompts_limit,
+    page_limit: lim.page_limit,
+    prompts_reset_at: nextResetIso(),
+    updated_at: new Date().toISOString(),
+  };
+  if (opts?.reset_prompt_usage) patch.prompts_used = 0;
+  if (opts && 'paystack_customer_code' in opts) {
+    patch.paystack_customer_code = opts.paystack_customer_code;
+  }
+  if (opts && 'paystack_subscription_code' in opts) {
+    patch.paystack_subscription_code = opts.paystack_subscription_code;
+  }
+
+  const { error } = await supabase.from('user_subscriptions').update(patch).eq('user_id', userId);
+  if (error) throw new Error(error.message);
+
+  const row = await getUserTier(userId);
+  return row;
+}
 
 function nextResetIso(): string {
   return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();

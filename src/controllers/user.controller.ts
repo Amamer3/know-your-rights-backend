@@ -2,7 +2,11 @@ import { Request, Response } from 'express';
 import { supabase } from '../config/supabase.js';
 
 export const getProfile = async (req: Request, res: Response) => {
-  const user = (req as any).user;
+  const user = req.user;
+  if (!user) {
+    res.status(401).json({ message: 'Unauthorized' });
+    return;
+  }
 
   try {
     const { data, error } = await supabase
@@ -30,8 +34,13 @@ export const getProfile = async (req: Request, res: Response) => {
 };
 
 export const updateProfile = async (req: Request, res: Response) => {
-  const user = (req as any).user;
+  const user = req.user;
   const { name, preferences } = req.body;
+
+  if (!user) {
+    res.status(401).json({ message: 'Unauthorized' });
+    return;
+  }
 
   try {
     // Update auth metadata
@@ -65,7 +74,12 @@ export const updateProfile = async (req: Request, res: Response) => {
 };
 
 export const deleteAccount = async (req: Request, res: Response) => {
-  const user = (req as any).user;
+  const user = req.user;
+
+  if (!user) {
+    res.status(401).json({ message: 'Unauthorized' });
+    return;
+  }
 
   try {
     // Note: Supabase Admin API is needed to delete a user from auth.users.

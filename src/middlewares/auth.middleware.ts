@@ -1,17 +1,25 @@
 import { Request, Response, NextFunction } from 'express';
-import { supabase } from '../config/supabase.js';
+import { supabase, supabaseAuth } from '../config/supabase.js';
 
 export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
+  const authHeader =
+    req.headers.authorization ??
+    (typeof req.headers.Authorization === 'string' ? req.headers.Authorization : undefined);
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'No token provided' });
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.slice(7).trim();
+  if (!token) {
+    return res.status(401).json({ message: 'No token provided' });
+  }
 
   try {
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    const {
+      data: { user },
+      error,
+    } = await supabaseAuth.auth.getUser(token);
 
     if (error || !user) {
       return res.status(401).json({ message: 'Invalid or expired token' });
